@@ -130,14 +130,15 @@ class AuthorizeCreditCard(object):
         transaction.full_response = response
         return transaction
 
-    def save(self):
+    def save(self, unique_id=None):
         """
         Saves the credit card on Authorize.net's servers so you can create
         transactions at a later date. Returns an
         :class:`AuthorizeSavedCard <authorize.client.AuthorizeSavedCard>`
         instance that you can save or use.
         """
-        unique_id = uuid4().hex[:20]
+        if not unique_id:
+            unique_id = uuid4().hex[:20]
         payment = self._client._customer.create_saved_payment(
             self.credit_card, address=self.address)
         profile_id, payment_ids = self._client._customer \
