@@ -130,7 +130,7 @@ class AuthorizeCreditCard(object):
         transaction.full_response = response
         return transaction
 
-    def save(self, unique_id=None):
+    def save(self, unique_id=None, profile_id=None):
         """
         Saves the credit card on Authorize.net's servers so you can create
         transactions at a later date. Returns an
@@ -139,10 +139,15 @@ class AuthorizeCreditCard(object):
         """
         if not unique_id:
             unique_id = uuid4().hex[:20]
-        payment = self._client._customer.create_saved_payment(
-            self.credit_card, address=self.address)
-        profile_id, payment_ids = self._client._customer \
-            .create_saved_profile(unique_id, [payment])
+        if not profile_id:
+            payment = self._client._customer.create_saved_payment(
+                self.credit_card, address=self.address)
+            profile_id, payment_ids = self._client._customer \
+                .create_saved_profile(unique_id, [payment])
+        else:
+            payment = self._client._customer.create_saved_payment(
+                            self.credit_card, address=self.address,
+                            profile_id=profile_id)            
         uid = '{0}|{1}'.format(profile_id, payment_ids[0])
         return self._client.saved_card(uid)
 
