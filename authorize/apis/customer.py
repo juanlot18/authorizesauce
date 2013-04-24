@@ -53,6 +53,7 @@ class CustomerAPI(object):
             e.full_response = {
                 'response_code': error.code,
                 'response_text': error.text,
+                'direct_response': parse_response(response.directResponse),
             }
             raise e
         return response
