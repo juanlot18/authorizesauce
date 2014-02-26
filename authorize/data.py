@@ -29,13 +29,14 @@ class CreditCard(object):
     for invalid credit card numbers, past expiration dates, etc.
     """
     def __init__(self, card_number=None, exp_year=None, exp_month=None,
-            cvv=None, first_name=None, last_name=None):
+            cvv=None, first_name=None, last_name=None, user_id=None):
         self.card_number = re.sub(r'\D', '', str(card_number))
         self.exp_year = str(exp_year)
         self.exp_month = str(exp_month)
         self.cvv = str(cvv)
         self.first_name = first_name
         self.last_name = last_name
+        self.user_id = user_id
         self.validate()
 
     def __repr__(self):
@@ -61,14 +62,19 @@ class CreditCard(object):
         if not self.card_type:
             raise AuthorizeInvalidError('Credit card number is not valid.')
 
+    @staticmethod
+    def exp_time(exp_month, exp_year):
+        exp_year, exp_month = int(exp_year), int(exp_month)
+        return datetime(exp_year, exp_month,
+            calendar.monthrange(exp_year, exp_month)[1],
+            23, 59, 59)
+
     @property
     def expiration(self):
         """
         The credit card expiration date as a ``datetime`` object.
         """
-        return datetime(int(self.exp_year), int(self.exp_month),
-            calendar.monthrange(int(self.exp_year), int(self.exp_month))[1],
-            23, 59, 59)
+        return self.exp_time(self.exp_month, self.exp_year)
 
     @property
     def safe_number(self):
@@ -90,6 +96,7 @@ class CreditCard(object):
         for card_type, card_type_re in CARD_TYPES.items():
             if re.match(card_type_re, self.card_number):
                 return card_type
+
 
 class Address(object):
     """
