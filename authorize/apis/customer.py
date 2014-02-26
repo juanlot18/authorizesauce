@@ -54,8 +54,11 @@ class CustomerAPI(object):
             e.full_response = {
                 'response_code': error.code,
                 'response_text': error.text,
-                'direct_response': parse_response(response.directResponse),
             }
+            if hasattr(response, 'directResponse'):
+                e.full_response['direct_response'] = parse_response(response.directResponse)
+            else:
+                e.full_response['direct_response'] = ''
             raise e
         return response
 
