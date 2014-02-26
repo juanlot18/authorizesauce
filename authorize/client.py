@@ -58,14 +58,14 @@ class AuthorizeClient(object):
         return AuthorizeCreditCard(self, credit_card, address=address,
                                    email=email)
 
-    def transaction(self, uid):
+    def transaction(self, uid, order_id):
         """
         To perform an action on a previous transaction, pass in the ``uid`` of
         that transaction as a string. This will return an
         :class:`AuthorizeTransaction <authorize.client.AuthorizeTransaction>`
         instance you can then use to settle, credit or void that transaction.
         """
-        return AuthorizeTransaction(self, uid)
+        return AuthorizeTransaction(self, uid, order_id)
 
     def saved_card(self, uid):
         """
@@ -105,7 +105,7 @@ class AuthorizeCreditCard(object):
         return '<AuthorizeCreditCard {0.credit_card.card_type} ' \
             '{0.credit_card.safe_number}>'.format(self)
 
-    def auth(self, amount):
+    def auth(self, amount, order_id):
         """
         Authorize a transaction against this card for the specified amount.
         This verifies the amount is available on the card and reserves it.
@@ -114,12 +114,12 @@ class AuthorizeCreditCard(object):
         instance representing the transaction.
         """
         response = self._client._transaction.auth(
-            amount, self.credit_card, self.address)
-        transaction = self._client.transaction(response['transaction_id'])
+            amount, self.credit_card, self.address, order_id)
+        transaction = self._client.transaction(response['transaction_id'], order_id)
         transaction.full_response = response
         return transaction
 
-    def capture(self, amount):
+    def capture(self, amount, order_id):
         """
         Capture a transaction immediately on this card for the specified
         amount. Returns an
@@ -127,23 +127,29 @@ class AuthorizeCreditCard(object):
         instance representing the transaction.
         """
         response = self._client._transaction.capture(
-            amount, self.credit_card, self.address)
-        transaction = self._client.transaction(response['transaction_id'])
+            amount, self.credit_card, self.address, order_id)
+        transaction = self._client.transaction(response['transaction_id'], order_id)
         transaction.full_response = response
         return transaction
 
-    def save(self):
+    def save(self, unique_id=None, profile_id=None):
         """
         Saves the credit card on Authorize.net's servers so you can create
         transactions at a later date. Returns an
         :class:`AuthorizeSavedCard <authorize.client.AuthorizeSavedCard>`
         instance that you can save or use.
         """
-        unique_id = uuid4().hex[:20]
-        payment = self._client._customer.create_saved_payment(
-            self.credit_card, address=self.address)
-        profile_id, payment_ids = self._client._customer \
-            .create_saved_profile(unique_id, [payment], email=self.email)
+        if not unique_id:
+            unique_id = uuid4().hex[:20]
+        if not profile_id:
+            payment = self._client._customer.create_saved_payment(
+                self.credit_card, address=self.address)
+            profile_id, payment_ids = self._client._customer \
+                .create_saved_profile(unique_id, [payment])
+        else:
+            payment_ids = [self._client._customer.create_saved_payment(
+                self.credit_card, address=self.address,
+                profile_id=profile_id)]        
         uid = '{0}|{1}'.format(profile_id, payment_ids[0])
         return self._client.saved_card(uid)
 
@@ -204,9 +210,10 @@ class AuthorizeTransaction(object):
     Additionally, if you need to access the full raw result of the transaction
     it is stored in the ``full_response`` attribute on the class.
     """
-    def __init__(self, client, uid):
+    def __init__(self, client, uid, order_id=None):
         self._client = client
         self.uid = uid
+        self.order_id = order_id
 
     def __repr__(self):
         return '<AuthorizeTransaction {0.uid}>'.format(self)
@@ -221,7 +228,7 @@ class AuthorizeTransaction(object):
         instance representing the settlement transaction.
         """
         response = self._client._transaction.settle(self.uid, amount=amount)
-        transaction = self._client.transaction(response['transaction_id'])
+        transaction = self._client.transaction(response['transaction_id'], self.order_id)
         transaction.full_response = response
         return transaction
 
@@ -251,7 +258,7 @@ class AuthorizeTransaction(object):
         """
         response = self._client._transaction.credit(
             card_number, self.uid, amount)
-        transaction = self._client.transaction(response['transaction_id'])
+        transaction = self._client.transaction(response['transaction_id'], self.order_id)
         transaction.full_response = response
         return transaction
 
@@ -263,7 +270,7 @@ class AuthorizeTransaction(object):
         instance representing the void transaction.
         """
         response = self._client._transaction.void(self.uid)
-        transaction = self._client.transaction(response['transaction_id'])
+        transaction = self._client.transaction(response['transaction_id'], self.order_id)
         transaction.full_response = response
         return transaction
 
@@ -297,7 +304,7 @@ class AuthorizeSavedCard(object):
     def __repr__(self):
         return '<AuthorizeSavedCard {0.uid}>'.format(self)
 
-    def auth(self, amount):
+    def auth(self, amount, order_id):
         """
         Authorize a transaction against this card for the specified amount.
         This verifies the amount is available on the card and reserves it.
@@ -306,12 +313,12 @@ class AuthorizeSavedCard(object):
         instance representing the transaction.
         """
         response = self._client._customer.auth(
-            self._profile_id, self._payment_id, amount)
-        transaction = self._client.transaction(response['transaction_id'])
+            self._profile_id, self._payment_id, amount, order_id)
+        transaction = self._client.transaction(response['transaction_id'], order_id)
         transaction.full_response = response
         return transaction
 
-    def capture(self, amount):
+    def capture(self, amount, order_id):
         """
         Capture a transaction immediately on this card for the specified
         amount. Returns an
@@ -319,8 +326,8 @@ class AuthorizeSavedCard(object):
         instance representing the transaction.
         """
         response = self._client._customer.capture(
-            self._profile_id, self._payment_id, amount)
-        transaction = self._client.transaction(response['transaction_id'])
+            self._profile_id, self._payment_id, amount, order_id)
+        transaction = self._client.transaction(response['transaction_id'], order_id)
         transaction.full_response = response
         return transaction
 

@@ -214,37 +214,40 @@ class CustomerAPI(object):
         self._make_call('DeleteCustomerPaymentProfile',
             profile_id, payment_id)
 
-    def auth(self, profile_id, payment_id, amount):
+    def auth(self, profile_id, payment_id, amount, order_id):
         transaction = self.client.factory.create('ProfileTransactionType')
         auth = self.client.factory.create('ProfileTransAuthOnlyType')
         amount = Decimal(str(amount)).quantize(Decimal('0.01'))
         auth.amount = str(amount)
         auth.customerProfileId = profile_id
+        auth.order.purchaseOrderNumber = str(order_id)
         auth.customerPaymentProfileId = payment_id
         transaction.profileTransAuthOnly = auth
         response = self._make_call('CreateCustomerProfileTransaction',
             transaction, self.transaction_options)
         return parse_response(response.directResponse)
 
-    def capture(self, profile_id, payment_id, amount):
+    def capture(self, profile_id, payment_id, amount, order_id):
         transaction = self.client.factory.create('ProfileTransactionType')
         capture = self.client.factory.create('ProfileTransAuthCaptureType')
         amount = Decimal(str(amount)).quantize(Decimal('0.01'))
         capture.amount = str(amount)
         capture.customerProfileId = profile_id
+        capture.order.purchaseOrderNumber = str(order_id)
         capture.customerPaymentProfileId = payment_id
         transaction.profileTransAuthCapture = capture
         response = self._make_call('CreateCustomerProfileTransaction',
             transaction, self.transaction_options)
         return parse_response(response.directResponse)
 
-    def credit(self, profile_id, payment_id, amount):
+    def credit(self, profile_id, payment_id, amount, order_id):
         # Creates an "unlinked credit" (as opposed to refunding a previous transaction)
         transaction = self.client.factory.create('ProfileTransactionType')
         credit = self.client.factory.create('ProfileTransRefundType')
         amount = Decimal(str(amount)).quantize(Decimal('0.01'))
         credit.amount = str(amount)
         credit.customerProfileId = profile_id
+        credit.order.purchaseOrderNumber = str(order_id)
         credit.customerPaymentProfileId = payment_id
         transaction.profileTransRefund = credit
         response = self._make_call('CreateCustomerProfileTransaction',
